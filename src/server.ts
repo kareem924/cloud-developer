@@ -1,8 +1,9 @@
-import express from 'express';
+import express, { Send } from 'express';
 import bodyParser from 'body-parser';
-import {filterImageFromURL, deleteLocalFiles} from './util/util';
+import { filterImageFromURL, deleteLocalFiles } from './util/util';
 import { Url } from 'url';
 import { url } from 'inspector';
+import { promises } from 'dns';
 
 (async () => {
 
@@ -11,7 +12,7 @@ import { url } from 'inspector';
 
   // Set the network port
   const port = process.env.PORT || 8082;
-  
+
   // Use the body parser middleware for post requests
   app.use(bodyParser.json());
 
@@ -33,34 +34,34 @@ import { url } from 'inspector';
 
   //! END @TODO1
 
-  app.get("/filteredimage", async (req: express.Request, res: express.Response) => {
-    let { image_url } = req.query;
-    if ( !image_url ) {
-      return res.status(400).send("image_url is required");
+  app.get("/filteredimage", async (req: express.Request, res: express.Response): Promise<void> => {
+    let query: { imageUrl: string } = req.query;
+    if (!query.imageUrl) {
+      res.status(400).send("image_url is required");
     }
-    filterImageFromURL(image_url)
-    .then(filteredpath => {
-      return res.status(200).sendFile(filteredpath, err => {
-        if (!err) {
-          let filesList: string[] = [filteredpath];
-          deleteLocalFiles(filesList);
-        }
+    filterImageFromURL(query.imageUrl)
+      .then(filteredpath => {
+        return res.status(200).sendFile(filteredpath, err => {
+          if (!err) {
+            let filesList: string[] = [filteredpath];
+            deleteLocalFiles(filesList);
+          }
+        });
+      }).catch(() => {
+        return res.status(422).send("error when processing the image");
       });
-    }).catch(() => {
-      return res.status(422).send("error when processing the image");
-    });
-} );  
+  });
 
   // Root Endpoint
   // Displays a simple message to the user
-  app.get( "/", async ( req, res ) => {
+  app.get("/", async (req: express.Request, res: express.Response): Promise<void> => {
     res.send("try GET /filteredimage?image_url={{}}")
-  } );
-  
+  });
+
 
   // Start the Server
-  app.listen( port, () => {
-      console.log( `server running http://localhost:${ port }` );
-      console.log( `press CTRL+C to stop server` );
-  } );
+  app.listen(port, () => {
+    console.log(`server running http://localhost:${port}`);
+    console.log(`press CTRL+C to stop server`);
+  });
 })();
